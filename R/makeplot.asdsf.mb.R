@@ -32,10 +32,10 @@ makeplot.asdsf.mb <- function(chains,
                               min.freq = 0.0,
                               log.y = TRUE) {
 
-    print(sprintf("Creating ASDSF.mb plot"))
+    message("Creating ASDSF.mb plot")
 
     chains <- check.chains(chains)
-    labels <- names(chains)
+    # labels <- names(chains)
     slide.freq.list <- slide.freq.mb(chains, burnin, window.size, window.number)
     dat <- get.asdsfs.mb(slide.freq.list, min.freq)
 
