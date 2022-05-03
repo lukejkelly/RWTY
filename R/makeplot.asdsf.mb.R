@@ -1,14 +1,14 @@
 #' Plot the Standard Deviation of Split Frequencies over the course of an MCMC
-#' with windows growing in size in the style of MrBayes.
+#' with sliding windows growing in size in the style of MrBayes.
 #'
 #' This function takes two or more rwty.chain ojects and returns a plot of
 #' ASDSF at number.points evenly spaced iterations.
-#' Each ASDSF is calculated on the most recent window.size of samples
+#' Each ASDSF is calculated on the most recent window.lookback of samples
 #' The solid line with points shows the Average Standard Deviation of Split Frequences at the current generation
 #'
 #' @param chains A list of rwty.chain objects.
 #' @param burnin The number of trees to eliminate as burnin. Defaults to zero.
-#' @param window.size The percentage of preceding samples to use for each estimate.
+#' @param window.lookback The percentage of preceding samples to use for each estimate.
 #' @param window.number The number of ASDSFs estimates to plot at evenly spaced number of iterations after burnin and including the final sample.
 #' @param min.freq The minimum frequency for a node to be used for calculating ASDSF.
 #' @param log.y Controls whether they Y axis is plotted on a log scale or not.  Which scale is more useful depends largely on the amount of disagreement between your chains.  Attempting to make an asdsf plot with a log Y axis for chains that include standard deviations of zero will result in warning messages.
@@ -27,7 +27,7 @@
 
 makeplot.asdsf.mb <- function(chains,
                               burnin = 0,
-                              window.size = 0.75,
+                              window.lookback = 0.75,
                               window.number = 10,
                               min.freq = 0.0,
                               log.y = TRUE) {
@@ -35,8 +35,12 @@ makeplot.asdsf.mb <- function(chains,
     message("Creating ASDSF.mb plot")
 
     chains <- check.chains(chains)
-    # labels <- names(chains)
-    slide.freq.list <- slide.freq.mb(chains, burnin, window.size, window.number)
+    slide.freq.list <- slide.freq.mb(
+        chains,
+        burnin,
+        window.lookback,
+        window.number
+    )
     dat <- get.asdsfs.mb(slide.freq.list, min.freq)
 
     asdsf.plot <- ggplot(dat, aes(x = as.numeric(as.character(Generation)))) +
@@ -58,7 +62,7 @@ makeplot.asdsf.mb <- function(chains,
 }
 
 # Calculating expanding sliding window frequencies
-slide.freq.mb <- function(chains, burnin, window.size, window.number) {
+slide.freq.mb <- function(chains, burnin, window.lookback, window.number) {
 
     chains <- check.chains(chains)
     trees <- lapply(chains, function(x) x[['trees']])
@@ -73,7 +77,7 @@ slide.freq.mb <- function(chains, burnin, window.size, window.number) {
         trees,
         get.slide.freq.table.mb,
         burnin = burnin,
-        window.size = window.size,
+        window.lookback = window.lookback,
         window.number = window.number,
         gens.per.tree = chains[[1]]$gens.per.tree
     )
@@ -83,11 +87,11 @@ slide.freq.mb <- function(chains, burnin, window.size, window.number) {
 # Get trees on each window
 get.slide.freq.table.mb <- function(tree.list,
                                     burnin,
-                                    window.size,
+                                    window.lookback,
                                     window.number,
                                     gens.per.tree = 1) {
     # Instead of splitting trees disjointly, we create a list such that entry j
-    # includes the most recent window.size proportion of trees up to the
+    # includes the most recent window.lookback proportion of trees up to the
     # iteration corresponding to the final entry in that window
 
     tree.list <- tree.list[(burnin + 1):length(tree.list)]
@@ -95,7 +99,7 @@ get.slide.freq.table.mb <- function(tree.list,
     n.tree <- length(tree.list)
     i.win <- seq_len(window.number)
     u <- round(n.tree * i.win / window.number)
-    l <- round(u * (1 - window.size)) + 1
+    l <- round(u * (1 - window.lookback)) + 1
 
     # overlapping sliding windows of trees
     tree.windows <- purrr::map2(l, u, ~ tree.list[seq.int(.x, .y)])
@@ -166,7 +170,6 @@ get.slide.freq.table.mb <- function(tree.list,
     class(output) <- "rwty.slide"
     return(output)
 }
-
 
 # Calculate ASDSF from sliding window split frequencies
 get.asdsfs.mb <- function(slide.freq.list, min.freq) {

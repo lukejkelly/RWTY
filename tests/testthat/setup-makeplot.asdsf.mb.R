@@ -14,17 +14,15 @@ t3 <- read.tree(text = "((d:1,c:1):1,(a:1,b:1):1,e:2);", keep.multi = TRUE)
 # par(mfrow = c(1, 3))
 # purrr::walk(c(t1, t2, t3), ~ plot.phylo(., "unrooted"))
 
-c1 <- make_rwty_chain(c(t1, t2, t1, t2, t3, t1, t2, t3, t1, t1))
-c2 <- make_rwty_chain(c(t2, t3, t1, t1, t1, t2, t2, t1, t1, t1))
+# 10 samples each
+b1 <- c(t1, t2, t1, t2, t3, t1, t2, t3, t1, t1)
+b2 <- c(t2, t3, t1, t1, t1, t2, t2, t1, t1, t1)
+
+c1 <- make_rwty_chain(b1)
+c2 <- make_rwty_chain(b2)
 cl <- list(c1, c2)
 
-#
-# #
-# burnin = 2
-# window.size = 0.5
-# window.number = 4
-#
-#
-#
-# debug(makeplot.asdsf.mb)
-# makeplot.asdsf.mb(list(f1, f2), 0, 0.5, 2)
+# sufficiently long chains for debugging with makeplot.asdsf
+d1 <- make_rwty_chain(c(b1, b1))
+d2 <- make_rwty_chain(c(b2, b2))
+dl <- list(d1, d2)

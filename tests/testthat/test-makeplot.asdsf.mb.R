@@ -1,6 +1,6 @@
 test_that("compare with makeplot.asdsf", {
-    # asdsf.mb using 100% window sizes should compare produce the same output
-    # as asdsf provided the window indices line up
+    # asdsf.mb using 100% lookback should produce the same output as asdsf
+    # asdsf provided the window indices line up
 
     # burnin = 2 so 8 samples, 4 evenly spaced window endpoints
     obs1 <- makeplot.asdsf.mb(cl, 2, 1, 4)$asdsf.plot$data$ASDSF
@@ -16,36 +16,37 @@ test_that("compare with makeplot.asdsf", {
 test_that("check get.slide.freq.table.mb", {
     # burnin = 2, lookback = 75%, 2 evenly spaced window endpoints
     burnin <- 2
-    window.size <- 0.75
+    window.lookback <- 0.75
     window.number <- 2
     gens.per.tree <- 1
 
     obs1 <- get.slide.freq.table.mb(
         c1$trees,
         burnin,
-        window.size,
+        window.lookback,
         window.number,
         gens.per.tree
     )
     obs2 <- get.slide.freq.table.mb(
         c2$trees,
         burnin,
-        window.size,
+        window.lookback,
         window.number,
         gens.per.tree
     )
 
+    # With the exception of clade 12, both translation tables should be the same
     expect_equal(obs1$translation[-1, 2:3], obs2$translation[, 2:3])
 
     n.trees <- length(c1$trees) - burnin
     u <- round(seq_len(window.number) * n.trees / window.number)
-    l <- round(u * (1 - window.size)) + 1
+    l <- round(u * (1 - window.lookback)) + 1
 
     # clade indicators for each tree
-    # (1) 12, (2) 123, (3) 12345, (4) 125, (5) 134, (6) 145
-    w1 <- c(0, 1, 1, 0, 0, 1)
-    w2 <- c(0, 0, 1, 1, 1, 0)
-    w3 <- c(1, 0, 1, 1, 0, 0)
+    # (1) 12, (2) 123, (3) 125, (4) 134, (5) 145
+    w1 <- c(0, 1, 0, 0, 1)
+    w2 <- c(0, 0, 1, 1, 0)
+    w3 <- c(1, 0, 1, 0, 0)
     w <- cbind(w1, w2, w3)
 
     # tree counts for each interval, v{chain}_{interval}
@@ -73,14 +74,14 @@ test_that("check get.slide.freq.table.mb", {
 test_that("check get.asdsfs.mb", {
     # burnin = 1, lookback = 2/3, 3 evenly spaced window endpoints
     burnin <- 1
-    window.size <- 2/3
+    window.lookback <- 2 / 3
     window.number <- 3
     gens.per.tree <- 1
 
     obs_asdsf <- makeplot.asdsf.mb(
         cl,
         burnin,
-        window.size,
+        window.lookback,
         window.number
     )$asdsf.plot$data$ASDSF
 
@@ -88,27 +89,27 @@ test_that("check get.asdsfs.mb", {
     obs_sf1 <- get.slide.freq.table.mb(
         c1$trees,
         burnin,
-        window.size,
+        window.lookback,
         window.number,
         gens.per.tree
     )
     obs_sf2 <- get.slide.freq.table.mb(
         c2$trees,
         burnin,
-        window.size,
+        window.lookback,
         window.number,
         gens.per.tree
     )
 
     n.trees <- length(c1$trees) - burnin
     u <- round(seq_len(window.number) * n.trees / window.number)
-    l <- round(u * (1 - window.size)) + 1
+    l <- round(u * (1 - window.lookback)) + 1
 
     # clade indicators for each tree
-    # (1) 12, (2) 123, (3) 12345, (4) 125, (5) 134, (6) 145
-    w1 <- c(0, 1, 1, 0, 0, 1)
-    w2 <- c(0, 0, 1, 1, 1, 0)
-    w3 <- c(1, 0, 1, 1, 0, 0)
+    # (1) 12, (2) 123, (3) 125, (4) 134, (5) 145
+    w1 <- c(0, 1, 0, 0, 1)
+    w2 <- c(0, 0, 1, 1, 0)
+    w3 <- c(1, 0, 1, 0, 0)
     w <- cbind(w1, w2, w3)
 
     # tree counts for each interval, v{chain}_{interval}
@@ -137,10 +138,10 @@ test_that("check get.asdsfs.mb", {
     expect_equal(obs_sf2$slide.table, exp_st2)
 
     # manually checking asdsf
-    exp_asdsf <- double(length(u))
+    exp_asdsf1 <- double(length(u))
     sp1 <- obs_sf1$translation[, "Tip numbers"]
     sp2 <- obs_sf2$translation[, "Tip numbers"]
-    for (i in seq_along(exp_asdsf)) {
+    for (i in seq_along(exp_asdsf1)) {
         sf1 <- obs_sf1$slide.table[[i]]
         sf2 <- obs_sf2$slide.table[[i]]
 
@@ -156,7 +157,64 @@ test_that("check get.asdsfs.mb", {
 
             asdsf_ik[k] <- sd(c(g1_k, g2_k))
         }
-        exp_asdsf[i] <- mean(asdsf_ik)
+        exp_asdsf1[i] <- mean(asdsf_ik)
+    }
+    expect_equal(obs_asdsf, exp_asdsf1)
+
+    # checking against output of makeplot.asdsf
+    exp_asdsf2 <- double(length(u))
+    for (i in seq_along(exp_asdsf2)) {
+        exp_asdsf2[i] <- makeplot.asdsf(
+            dl,
+            burnin + l[i] - 1,
+            u[i] - l[i] + 1
+        )$asdsf.plot$data$ASDSF[1]
+    }
+    expect_equal(obs_asdsf, exp_asdsf2)
+})
+
+
+test_that("compare on fungus", {
+    # burnin = 11, lookback = 2/3, 3 evenly spaced window endpoints
+    data(fungus)
+    burnin <- 11
+    window.lookback <- 2 / 3
+    window.number <- 12
+
+    obs_asdsf <- makeplot.asdsf.mb(
+        fungus,
+        burnin,
+        window.lookback,
+        window.number
+    )$asdsf.plot$data$ASDSF
+
+    n.trees <- length(fungus[[1]]$trees) - burnin
+    u <- round(seq_len(window.number) * n.trees / window.number)
+    l <- round(u * (1 - window.lookback)) + 1
+
+    c1 <- make_rwty_chain(b1)
+    c2 <- make_rwty_chain(b2)
+    cl <- list(c1, c2)
+
+    # make fungus longer so as not to throw an error with large burn-in
+    double_fungus_run <- function(run_name) {
+        f <- list(
+            trees = c(fungus[[run_name]]$trees, fungus[[run_name]]$trees),
+            ptable = NULL,
+            gens.per.tree = 1
+        )
+        class(f) <- "rwty.chain"
+        return(f)
+    }
+    fungus2 <- purrr::map(names(fungus), double_fungus_run)
+
+    exp_asdsf <- double(length(u))
+    for (i in seq_along(exp_asdsf)) {
+        exp_asdsf[i] <- makeplot.asdsf(
+            fungus2,
+            burnin + l[i] - 1,
+            u[i] - l[i] + 1
+        )$asdsf.plot$data$ASDSF[1]
     }
     expect_equal(obs_asdsf, exp_asdsf)
 })
